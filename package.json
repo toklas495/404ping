@@ -1,0 +1,24 @@
+{
+  "name": "404ping",
+  "version": "1.0.0",
+  "description": "Lightweight API testing CLI- curl with a brain",
+  "license": "MIT",
+  "author": "toklas495",
+  "main": "app.mjs",
+  "scripts": {
+    "build": "chmod +x app.mjs && npm link",
+    "dev":"node app.mjs"
+  },
+  "bin": {
+    "404ping": "./app.mjs"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "yargs": "^18.0.0"
+  },
+  "keywords":["api","cli","http","testing","curl","postman","bughunting"],
+  "repository": {
+    "type":"git",
+    "url":"https://github.com/toklas495/404ping"
+  }
+}
