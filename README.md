@@ -1,6 +1,6 @@
 # 🚀 404ping
 
-![404ping](./404ping.png)
+![404ping](../../Downloads/404ping.png)
 
 **Lightweight API testing CLI — curl with a brain**
 
