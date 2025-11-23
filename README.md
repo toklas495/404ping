@@ -1,3 +1,7 @@
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![npm version](https://badge.fury.io/js/404ping.svg)
+![GitHub stars](https://img.shields.io/github/stars/toklas495/404ping?style=social)
+![GitHub forks](https://img.shields.io/github/forks/toklas495/404ping?style=social)
 # 🚀 404ping
 
 ![404ping](./src/config/404ping.png)
