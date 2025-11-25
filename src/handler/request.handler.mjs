@@ -3,11 +3,95 @@ import { URL as URLBUILDER } from "url";
 import {variableParser} from '../utils/fileHandle.mjs';
 import CliError from "../utils/Error.mjs";
 import PrintOutput from "../utils/printOutput.mjs";
+import http from 'http';
+import https from 'https';
 
 
-export default async function RequestHandler(httpModule, args = {}) {
-    const request = new Request(httpModule);
-    let { method = "GET", url, data, header = [],s_header,size,info,raw,debug} = args;
+
+async function fetchWithRedirect(options, res, debug=false,maxRedirect = 4) {
+    let redirect = 0;
+    let payload = options.body || null;
+
+
+    while (true) {
+        if (redirect >= maxRedirect) {
+            throw new CliError({
+                isKnown: true,
+                message: `Max redirects (${maxRedirect}) exceeded`
+            });
+        }
+
+        const status = res.meta.status;
+
+        if (![301, 302, 303, 307, 308].includes(status)) {
+            return res; // no redirect → return final response
+        }
+
+        redirect++;
+
+        // --------------------------------------
+        // location header check
+        // --------------------------------------
+        const location = res.response.headers.location;
+        if (!location) {
+            throw new CliError({
+                isKnown: true,
+                message: "Redirect status but no location header!"
+            });
+        }
+
+        // --------------------------------------
+        // Resolve new URL
+        // --------------------------------------
+        const redirectUrl = new URL(location, `${options.protocol}//${options.host}`);
+
+        // --------------------------------------
+        // Update request options
+        // --------------------------------------
+        if(debug) console.log(`↪ Redirect (${status}): ${options.protocol}//${options.host} -> ${redirectUrl.href}`)
+
+        options = {
+            protocol: redirectUrl.protocol.replace(':',''),
+            host: redirectUrl.hostname,
+            port: redirectUrl.port || (redirectUrl.protocol === "https:" ? 443 : 80),
+            path: redirectUrl.pathname + redirectUrl.search,
+            method: options.method,
+            headers: { ...options.headers },
+            body: payload
+        };
+
+        // --------------------------------------
+        // Change method based on redirect type
+        // --------------------------------------
+        if ([301, 302, 303].includes(status)) {
+            options.method = "GET";
+            options.body = null;
+            payload = null;
+        }
+
+        // For 307 & 308 → keep method + body
+
+        // --------------------------------------
+        // Send the new request
+        // --------------------------------------
+        const httpModule = options.protocol === "https" ? https : http;
+        const request = new Request(httpModule);
+
+        request.addMethod(options.method);
+        request.addHeaders(options.headers);
+        request.addHost(options.host);
+        request.addPort(options.port);
+        request.addPath(options.path);
+
+        if (options.body) request.addBody(options.body);
+
+        res = await request.send(); // ★ send again
+    }
+}
+
+
+export default async function RequestHandler(args = {}) {
+    let { method = "GET", url, data, header = [],s_header,size,info,raw,debug,connection,tls,redirect} = args;
 
     if (!url) {
         throw new CliError({isKnown:true,message:"ERROR: URL is required",type:"warn"});
@@ -23,7 +107,8 @@ export default async function RequestHandler(httpModule, args = {}) {
 
     try {
         const urlparams = new URLBUILDER(url);
-
+        const httpModule = urlparams.protocol==="https"?https:http;
+        const request = new Request(httpModule);
         // --- Headers ---
         const headers = {};
         if (header.length) {
@@ -58,13 +143,24 @@ export default async function RequestHandler(httpModule, args = {}) {
         request.addPath(urlparams.pathname + urlparams.search); // include query params
 
         // --- Send request ---
-        const response = await request.send();
+        let response = await request.send();
+        if(redirect&&[301,302,303,307,308].includes(response.meta.status)){
+            response = await fetchWithRedirect({
+                protocol:urlparams.protocol,
+                method:method.toUpperCase(),
+                headers:headers,
+                host:urlparams.hostname,
+                body:data
+            },response,debug);
+        }
         //pring the response
         const mode =s_header ? "header" :
                     raw      ? "raw" :
                     size     ? "size" :
                     info     ? "info" :
-                    debug    ? "debug" :"body";
+                    debug    ? "debug" :
+                    connection ? "connection":
+                    tls?"tls":"body";
         new PrintOutput(response).print(mode);
         return {...response,request:{method,url:args?.url,header,data:args?.data}}
     } catch (error) {

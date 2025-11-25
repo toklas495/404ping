@@ -62,6 +62,9 @@ yargs(hideBin(process.argv))
       await builder.runRequestFromCollection(argv);
     }
   )
+  .command(
+    "raw "
+  )
   .fail((msg, err, yargsInstance) => {
     // Print only the error message (curl-style)
     try{

@@ -1,6 +1,5 @@
 import { readRequestFile, saveRequestInCollection } from "../utils/fileHandle.mjs";
 import RequestHandler from "./request.handler.mjs";
-import http from 'http';
 
 export default async function runFromCollectionHandler(argv){
     const [collection,reqName] = argv.collection_request.split(":").map(v=>v.trim());
@@ -8,7 +7,7 @@ export default async function runFromCollectionHandler(argv){
     try{
         const request = await readRequestFile(collection,reqName);
         argv = {...request,...argv};
-        const response = await RequestHandler(http,argv);
+        const response = await RequestHandler(argv);
         const reqBody = {
             url:response.request.url,
             method:response.request.method,

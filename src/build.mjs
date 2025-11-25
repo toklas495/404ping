@@ -1,4 +1,3 @@
-import http from 'http';
 import RequestHandler from './handler/request.handler.mjs';
 import {listVariableHandler, setVariableHandler,unSetVariableHandler} from './handler/variable.handler.mjs';
 import  CollectionHandler from './handler/collection.handler.mjs';
@@ -9,7 +8,7 @@ import runFromCollectionHandler from './handler/runFromCollection.handler.mjs';
 const builder   = {
     async requestHandler(argv){
         try{
-            await RequestHandler(http,argv)
+            await RequestHandler(argv)
         }catch(error){
             errorHandler(error);
         }

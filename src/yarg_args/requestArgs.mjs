@@ -48,6 +48,19 @@ const request_yargs = (yargs)=>{
         type:"boolean",
         describe:"full dump"
       })
+      .option("connection",{
+        type:"boolean",
+        describe:"full socket info"
+      })
+      .option("tls",{
+        type:"boolean",
+        describe:"HTTPS cert+ cipher detail"
+      })
+      .option("redirect",{
+        alias:"L",
+        type:"boolean",
+        describe:"follow redirects"
+      })
       .example(
         "404ping https://api.example.com/user -X POST -d '{\"name\":\"John\"}' -H 'Authorization: Bearer token'",
         "Send a POST request with JSON body and Authorization header"
