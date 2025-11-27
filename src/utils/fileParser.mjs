@@ -1,6 +1,4 @@
 import CliError from "./Error.mjs";
-import { variableParser } from "./fileHandle.mjs";
-
 // file parser
 const fileParser = (input)=>{
     try{
