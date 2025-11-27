@@ -11,7 +11,7 @@ export default async function runFromCollectionHandler(argv){
         const reqBody = {
             url:response.request.url,
             method:response.request.method,
-            headers:response.request.headers,
+            header:response.request.header,
             data:response.request.data
         }
         if(save) await saveRequestInCollection(collection,reqName,reqBody);

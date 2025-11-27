@@ -95,7 +95,6 @@ Time:     ${durationMs} ms`
         if (!this.res.tls) {
             return console.log(theme.error("TLS data only available for HTTPS requests"));
         }
-
         console.log(theme.info(JSON.stringify(this.res.tls, null, 2)));
     }
 

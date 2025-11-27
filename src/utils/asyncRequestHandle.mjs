@@ -1,12 +1,27 @@
+import CliError from "./Error.mjs";
+
 class Request{
     constructor(httpModule){
         //http request
         this.http = httpModule;
-        this.options = {};
+        this.agent = new this.http.Agent({
+            keepAlive:true,
+            maxSockets:100,
+            maxFreeSockets:10,
+            timeout:60000,  // idle socket timeout
+            keepAliveMsecs:5000// send tcp keep alive every 5 second
+        })
+        this.options = {agent:this.agent,rejectUnauthorized:false};
         this.payload = null;
+        this.timeout = 0;//default 
     }
     addHost(host){
-        this.options.host = host;
+        this.options.hostname = host;
+        return this;
+    }
+
+    addCert(){
+        this.options["rejectUnauthorized"] = true;
         return this;
     }
 
@@ -39,10 +54,14 @@ class Request{
         return this;
     }
 
+    addTimeout(timeout){
+        this.timeout = timeout;
+        return this;
+    }
     async send(){
         return new Promise((resolve,reject)=>{
             const start = performance.now();
-            
+            const timeoutMs = this.timeout;
             const req = this.http.request(this.options,(res)=>{
                 let data = [];
                 res.on('data',(chunk)=>{
@@ -50,6 +69,7 @@ class Request{
                 })
 
                 res.on("end",()=>{
+                    clearTimeout(timeoutTimer);
                     const end  = performance.now();
                     const ms = end-start;
                     const duration = ms<1000?`${ms.toFixed(2)}ms`:`${(ms/1000).toFixed(2)}s`
@@ -79,8 +99,8 @@ class Request{
                             json:parsedJson||null,
                             size:{
                                 bodyBytes:raw.length,
-                                headersBytes:Buffer.byteLength(JSON.stringify(res.headers)),
-                                totalBytes:raw.length+Buffer.byteLength(JSON.stringify(res.headers))
+                                headersBytes:res.rawHeaders.reduce((a,h)=>a+Buffer.byteLength(h),0),
+                                totalBytes:raw.length+res.rawHeaders.reduce((a,h)=>a+Buffer.byteLength(h),0)
                             }
                         },
                         duration,
@@ -96,12 +116,12 @@ class Request{
                         }:null,
 
                         //TLS DETAIL (only for https, else null)
-                        tls:socket?.getPeerCerticate?{
+                        tls:(socket&& typeof socket.getPeerCertificate==="function")?{
                             authorized:socket.authorized,
                             authorizationError:socket.authorizationError||null,
                             protocol:socket.getProtocol?.()||null,
                             cipher:socket.getCipher?.()||null,
-                            certificate:socket.getPeerCerticate?.()||null
+                            certificate:socket.getPeerCertificate?.()||null
                         }:null,
                         timing:{
                             startTime:start,
@@ -114,12 +134,27 @@ class Request{
                             url:this.options.path,
                             headers:this.options.headers,
                             payload:this.payload,
-                            host:this.options.host
+                            host:this.options.hostname
                         }
                     })
                 });
             })
-            req.on("error",reject);
+
+            // ------------------------------------------
+            //TIMEOUT HANDLING (IMPORTANT)
+            //------------------------------------------
+            let timeoutTimer = null;
+            if(timeoutMs>0){
+                timeoutTimer = setTimeout(()=>{
+                    req.destroy(); // abort socket;
+                    reject(new CliError({isKnown:true,message:`Request Timeout after ${timeoutMs}`}));
+                },timeoutMs);
+            };
+
+            req.on("error",(err)=>{
+                clearTimeout(timeoutTimer)
+                reject(err);
+            });
             if(this.payload) req.write(this.payload);
 
             req.end()

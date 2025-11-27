@@ -1,10 +1,11 @@
 import Request from "../utils/asyncRequestHandle.mjs";
 import { URL as URLBUILDER } from "url";
-import {variableParser} from '../utils/fileHandle.mjs';
+import {variableParser,loadFile} from '../utils/fileHandle.mjs';
 import CliError from "../utils/Error.mjs";
 import PrintOutput from "../utils/printOutput.mjs";
 import http from 'http';
 import https from 'https';
+import fileParser from "../utils/fileParser.mjs";
 
 
 
@@ -90,24 +91,33 @@ async function fetchWithRedirect(options, res, debug=false,maxRedirect = 4) {
 }
 
 
+
 export default async function RequestHandler(args = {}) {
-    let { method = "GET", url, data, header = [],s_header,size,info,raw,debug,connection,tls,redirect} = args;
+    let { method = "GET", url, data, header = [],s_header,size,info,raw,debug,connection,tls,redirect,timeout} = args;
 
     if (!url) {
         throw new CliError({isKnown:true,message:"ERROR: URL is required",type:"warn"});
     }
-    // parse variable 
-    url = await variableParser(url);
-    method=await variableParser(method);
-    data = typeof data==='string'?await variableParser(data):data;
-    header = await Promise.all(header.map(h=>variableParser(h)));
+    if(typeof url=="string" && url.startsWith("@")){
+        const reqFromFile = await loadFile(url);
+        const {url:get_url,method:get_method,header:get_header,data:get_data} = await fileParser(reqFromFile);
+        url = get_url;
+        method=method||get_method;
+        header=header||get_header;
+        data=data||get_data;
+    } 
+    try{  
+        // parse variable 
+        url = await variableParser(url);
+        method=await variableParser(method);
+        data = typeof data==='string'?await variableParser(data):data;
+        header = await Promise.all(header.map(h=>variableParser(h)));
+        
+        // normalize the url
+        if(!/^https?:\/\//i.test(url)) url=`http://${url}`;
 
-    // normalize the url
-    if(!/^https?:\/\//i.test(url)) url=`http://${url}`;
-
-    try {
         const urlparams = new URLBUILDER(url);
-        const httpModule = urlparams.protocol==="https"?https:http;
+        const httpModule = urlparams.protocol.slice(0,-1)==="https"?https:http;
         const request = new Request(httpModule);
         // --- Headers ---
         const headers = {};
@@ -140,6 +150,7 @@ export default async function RequestHandler(args = {}) {
         // --- URL parts ---
         request.addHost(urlparams.hostname);
         if (urlparams.port) request.addPort(Number(urlparams.port));
+        if(timeout) request.addTimeout(timeout);
         request.addPath(urlparams.pathname + urlparams.search); // include query params
 
         // --- Send request ---

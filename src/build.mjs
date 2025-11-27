@@ -30,7 +30,7 @@ const builder   = {
     async listVariableHandler(argv){try{await listVariableHandler(argv)}catch(error){errorHandler(error)}},
     async collectionHandler(argv){
         try{
-            await CollectionHandler(http,argv);
+            await CollectionHandler(argv);
         }catch(error){
             errorHandler(error);
         }

@@ -3,7 +3,7 @@ import { createCollection,readCollectionFile,saveRequestInCollection } from "../
 import theme from "../utils/theme.mjs";
 import RequestHandler from "./request.handler.mjs";
 
-export default async function collectionHandler(http,argv){
+export default async function collectionHandler(argv){
     let {action,name,request} = argv;
     const url = argv._[1];
 
@@ -21,11 +21,11 @@ export default async function collectionHandler(http,argv){
                 if(![name,request].every(value=>(value&&/^[a-zA-Z0-9_\-]+$/.test(value)))){
                     throw new CliError({isKnown:true,message:"Provide Collection <collection_name>|<request_name>! must not contain invalid chars",type:"warn"})
                 }
-                const response = await RequestHandler(http,argv);
+                const response = await RequestHandler(argv);
                 const request_body = {
                     url:response.request.url,
                     method:response.request.method,
-                    headers:response.request.headers,
+                    header:response.request.header,
                     data:response.request.data
                 }
                 await saveRequestInCollection(name,request,request_body)

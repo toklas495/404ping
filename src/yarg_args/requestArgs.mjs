@@ -61,6 +61,10 @@ const request_yargs = (yargs)=>{
         type:"boolean",
         describe:"follow redirects"
       })
+      .option("timeout",{
+        type:"number",
+        describe:"how long to wait for the server to send data after connection is established"
+      })
       .example(
         "404ping https://api.example.com/user -X POST -d '{\"name\":\"John\"}' -H 'Authorization: Bearer token'",
         "Send a POST request with JSON body and Authorization header"

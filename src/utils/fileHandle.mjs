@@ -133,8 +133,8 @@ export async function variableParser(input) {
       const [c,k] = key.split(".").map(v=>v.trim())
       const c_name = k===undefined?"global":c;
       const k_name = k===undefined?c:k;
-      if (cachedVars[c_name][k_name] !== undefined) return cachedVars[c_name][k_name];
-      console.warn(`Warning: variable "{{${key}}}" not found!`);
+      if (cachedVars?.[c_name]?.[k_name] !== undefined) return cachedVars[c_name][k_name];
+      console.warn(theme.warning(`Warning: variable "{{${key}}}" not found!`));
       return `{{${key}}}`; // leave placeholder if not found
     });
   } catch (error) {
@@ -205,9 +205,7 @@ export async function readRequestFile(collection_name,request_name){
 
 
 export async function loadFile(input){
-  //  if not @file -> return as it is
-  if(typeof input!=="string" || !input.startsWith("@")) return input;
-
+  //  if not @file -> return as it 
   const filePath = input.slice(1);
   const resolvePath = resolve(process.cwd(),filePath);
   try{
