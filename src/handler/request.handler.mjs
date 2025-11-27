@@ -101,8 +101,8 @@ async function fetchWithRedirect(options, res, debug=false,maxRedirect = 4) {
 
 export default async function RequestHandler(args = {}) {
     let { method = "GET", url, data, header = [],s_header,size,info,raw,debug,connection,tls,redirect,timeout,insecure,save} = args;
-
-        if (!url) {
+    let urlparams;
+    if (!url) {
         throw new CliError({
             isKnown: true,
             message: "URL is required",
@@ -146,7 +146,6 @@ export default async function RequestHandler(args = {}) {
         }
         
         // Security: Validate URL format
-        let urlparams;
         try {
             urlparams = new URLBUILDER(url);
         } catch (urlError) {
