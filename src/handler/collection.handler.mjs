@@ -13,35 +13,89 @@ export default async function collectionHandler(argv){
     try{
         switch(action){
             case "create":
-                if(!name||!/^[a-zA-Z0-9_\-]+$/.test(name)) throw new CliError({isKnown:true,message:"Provide Collection name! must not contain invalid chars",type:"warn"});
+                if(!name||!/^[a-zA-Z0-9_\-]+$/.test(name)) {
+                    throw new CliError({
+                        isKnown: true,
+                        message: "Collection name is required and must contain only alphanumeric characters, underscores, and hyphens",
+                        type: "warn",
+                        category: "validation"
+                    });
+                }
                 await createCollection(name);
                 break;
             case "save":
                 argv["url"] = url||undefined;
                 if(![name,request].every(value=>(value&&/^[a-zA-Z0-9_\-]+$/.test(value)))){
-                    throw new CliError({isKnown:true,message:"Provide Collection <collection_name>|<request_name>! must not contain invalid chars",type:"warn"})
+                    throw new CliError({
+                        isKnown: true,
+                        message: "Collection name and request name are required and must contain only alphanumeric characters, underscores, and hyphens",
+                        type: "warn",
+                        category: "validation"
+                    });
                 }
+                
+                // IMPORTANT: Capture raw values BEFORE calling RequestHandler
+                // This ensures we store the original request with variables like {{host}}
+                const rawRequestForSave = {
+                    url: argv["url"] || url || undefined,
+                    method: argv.method || "GET",
+                    header: Array.isArray(argv.header) ? [...argv.header] : (argv.header ? [argv.header] : []),
+                    data: argv.data
+                };
+                
                 const response = await RequestHandler(argv);
+                
+                // Use raw values (with variables) instead of resolved values
                 const request_body = {
-                    url:response.request.url,
-                    method:response.request.method,
-                    header:response.request.header,
-                    data:response.request.data
-                }
-                await saveRequestInCollection(name,request,request_body)
+                    url: rawRequestForSave.url,
+                    method: rawRequestForSave.method,
+                    header: rawRequestForSave.header,
+                    data: rawRequestForSave.data
+                };
+                await saveRequestInCollection(name, request, request_body);
                 break;
             case "list":
                 const content = await readCollectionFile();
                 console.log(theme.success(content));
                 break;
             case "show":
-                if(!name||!/^[a-zA-Z0-9_\-]+$/.test(name)) throw new CliError({isKnown:true,message:"Provide collection name! must not contain invalid chars",type:"warn"});
-                const raw_file  = await readCollectionFile();
-                const json_file = JSON.parse(raw_file);
-                if(!json_file.hasOwnProperty(name)) throw new CliError({isKnown:true,message:`<collection-${name}> not found!`});
-                console.log(theme.success(JSON.stringify(json_file[name],null,2)))
+                if(!name||!/^[a-zA-Z0-9_\-]+$/.test(name)) {
+                    throw new CliError({
+                        isKnown: true,
+                        message: "Collection name is required and must contain only alphanumeric characters, underscores, and hyphens",
+                        type: "warn",
+                        category: "validation"
+                    });
+                }
+                const raw_file = await readCollectionFile();
+                let json_file;
+                try {
+                    json_file = JSON.parse(raw_file);
+                } catch (parseError) {
+                    throw new CliError({
+                        isKnown: true,
+                        message: "Invalid JSON in collection file",
+                        category: "file",
+                        originalError: parseError
+                    });
+                }
+                if(!json_file.hasOwnProperty(name)) {
+                    throw new CliError({
+                        isKnown: true,
+                        message: `Collection "${name}" not found`,
+                        category: "file",
+                        type: "error"
+                    });
+                }
+                console.log(theme.success(JSON.stringify(json_file[name], null, 2)));
                 break;
             default:
+                throw new CliError({
+                    isKnown: true,
+                    message: `Unknown action: "${action}". Valid actions: create, save, list, show`,
+                    type: "warn",
+                    category: "validation"
+                });
         }
     }catch(error){
         throw error;

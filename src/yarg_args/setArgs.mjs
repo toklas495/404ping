@@ -1,4 +1,4 @@
-
+import CliError from "../utils/Error.mjs";
 
 const setArgs = (yargs)=>{
      return yargs

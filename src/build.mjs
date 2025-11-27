@@ -43,7 +43,13 @@ const builder   = {
         }
     },
     async init(){
-        await ensureFileExists();
+        try {
+            await ensureFileExists();
+        } catch (error) {
+            // If init fails, we still want to show the error properly
+            errorHandler(error);
+            process.exit(1);
+        }
     }
 }
 

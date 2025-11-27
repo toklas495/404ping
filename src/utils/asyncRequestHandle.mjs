@@ -1,7 +1,7 @@
 import CliError from "./Error.mjs";
 
 class Request{
-    constructor(httpModule){
+    constructor(httpModule, options = {}){
         //http request
         this.http = httpModule;
         this.agent = new this.http.Agent({
@@ -11,9 +11,15 @@ class Request{
             timeout:60000,  // idle socket timeout
             keepAliveMsecs:5000// send tcp keep alive every 5 second
         })
-        this.options = {agent:this.agent,rejectUnauthorized:false};
+        // SECURITY: rejectUnauthorized defaults to true (secure by default)
+        // Users can explicitly disable with --insecure flag if needed
+        this.options = {
+            agent: this.agent,
+            rejectUnauthorized: options.rejectUnauthorized !== false // Default to true for security
+        };
         this.payload = null;
         this.timeout = 0;//default 
+        this.insecure = options.insecure || false;
     }
     addHost(host){
         this.options.hostname = host;
@@ -22,6 +28,13 @@ class Request{
 
     addCert(){
         this.options["rejectUnauthorized"] = true;
+        this.insecure = false;
+        return this;
+    }
+
+    setInsecure(insecure = false){
+        this.insecure = insecure;
+        this.options["rejectUnauthorized"] = !insecure;
         return this;
     }
 
@@ -152,7 +165,26 @@ class Request{
             };
 
             req.on("error",(err)=>{
-                clearTimeout(timeoutTimer)
+                clearTimeout(timeoutTimer);
+                
+                // Handle SSL/TLS errors specifically
+                if (err.code && (err.code.includes("CERT") || err.code.includes("SSL") || 
+                    err.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" || 
+                    err.code === "SELF_SIGNED_CERT_IN_CHAIN" ||
+                    err.code === "DEPTH_ZERO_SELF_SIGNED_CERT")) {
+                    reject(new CliError({
+                        isKnown: true,
+                        message: `SSL certificate verification failed: ${err.message}`,
+                        code: err.code,
+                        category: "ssl",
+                        originalError: err,
+                        details: {
+                            suggestion: "Use --insecure flag to bypass certificate verification (not recommended)"
+                        }
+                    }));
+                    return;
+                }
+                
                 reject(err);
             });
             if(this.payload) req.write(this.payload);

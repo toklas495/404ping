@@ -27,7 +27,7 @@ const objectParser = async (config)=>{
         // config headers 
         if(config.headers&&typeof config.headers==="object"){
             for(let [key,value] of Object.entries(config.headers)){
-                headers.append(`${key}:${value}`);
+                headers.push(`${key}:${value}`);
             }
         }
 
@@ -35,9 +35,9 @@ const objectParser = async (config)=>{
         let cookieHeader = "";
         if(config.cookies&&typeof config.cookies==="object"){
             cookieHeader = Object.entries(config.cookies)
-                            .map((k,v)=>`${k}=${v}`)
+                            .map(([k,v])=>`${k}=${v}`)
                             .join("; ");
-            headers.append(`${Cookie}:${cookieHeader}`);
+            headers.push(`Cookie:${cookieHeader}`);
         }
 
         // convert body to json string
@@ -47,7 +47,14 @@ const objectParser = async (config)=>{
         return {url:reqUrl.toString(),header:headers,data:bodyData,method:config.method};
         
     }catch(error){
-        if(error.code==="ERR_INVALID_URL") throw new CliError({isKnown:true,mesage:`Invalid Url Format! ${config.url}`});
+        if(error.code==="ERR_INVALID_URL") {
+            throw new CliError({
+                isKnown: true,
+                message: `Invalid URL format: ${config.url}`,
+                code: error.code,
+                category: "validation"
+            });
+        }
         throw error;
     }
 }

@@ -1,4 +1,4 @@
-
+import CliError from "../utils/Error.mjs";
 
 const request_yargs = (yargs)=>{
     return yargs
@@ -65,9 +65,22 @@ const request_yargs = (yargs)=>{
         type:"number",
         describe:"how long to wait for the server to send data after connection is established"
       })
+      .option("insecure",{
+        alias:"k",
+        type:"boolean",
+        describe:"Allow insecure SSL connections (bypass certificate verification). Not recommended for production use."
+      })
+      .option("save",{
+        type:"string",
+        describe:"Save this request to a collection. Format: collection.request (e.g., myapp.login). Collection must exist."
+      })
       .example(
         "404ping https://api.example.com/user -X POST -d '{\"name\":\"John\"}' -H 'Authorization: Bearer token'",
         "Send a POST request with JSON body and Authorization header"
+      )
+      .example(
+        "404ping {{host}}/api/login -X POST -d '{\"email\":\"{{email}}\"}' --save myapp.login",
+        "Send a request and save it to collection 'myapp' as 'login' (stores raw values with variables)"
       )
       .check((argv) => {
         // Validate HTTP method
@@ -91,6 +104,35 @@ const request_yargs = (yargs)=>{
             });
             }
           });
+        }
+
+        // Validate --save format if provided
+        if (argv.save) {
+          if (!argv.save.includes('.')) {
+            throw new CliError({
+              isKnown: true,
+              message: `Invalid --save format: "${argv.save}". Must be "collection.request" (e.g., "myapp.login")`,
+              type: "warn",
+              category: "validation"
+            });
+          }
+          const [collection, request] = argv.save.split('.').map(s => s.trim());
+          if (!collection || !request) {
+            throw new CliError({
+              isKnown: true,
+              message: `Invalid --save format: "${argv.save}". Collection and request names cannot be empty`,
+              type: "warn",
+              category: "validation"
+            });
+          }
+          if (!/^[a-zA-Z0-9_\-]+$/.test(collection) || !/^[a-zA-Z0-9_\-]+$/.test(request)) {
+            throw new CliError({
+              isKnown: true,
+              message: `Invalid --save format: "${argv.save}". Collection and request names must contain only alphanumeric characters, underscores, and hyphens`,
+              type: "warn",
+              category: "validation"
+            });
+          }
         }
 
         return true;
