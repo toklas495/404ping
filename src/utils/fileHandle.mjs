@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import { join, dirname, resolve } from "path";
+import { join, dirname, resolve,extname } from "path";
 import constant from "../config/constant.mjs"; // adjust according to your structure
 import __dirname from "../../approotdir.mjs";
 import CliError from "./Error.mjs";
@@ -452,32 +452,20 @@ export async function readRequestFile(collection_name, request_name){
 export async function loadFile(input){
   //  if not @file -> return as it 
   const filePath = input.slice(1);
-  
-  // Security: Prevent path traversal attacks
-  if (filePath.includes('..') || filePath.includes('~')) {
+
+  if(![".json",".http"].includes(extname(input))){
     throw new CliError({
-      isKnown: true,
-      message: `Invalid file path: Path traversal detected`,
-      code: "EINVAL",
-      category: "validation",
-      details: { path: filePath }
-    });
+      isKnown:true,
+      message:"Invalid file ext",
+      code:"ERR_INVALID_PATH",
+      category:"validation",
+      details:{path:filePath}
+    })
   }
+  
   
   // Resolve path relative to current working directory
   const resolvePath = resolve(process.cwd(), filePath);
-  
-  // Security: Ensure resolved path is within current working directory
-  const cwd = process.cwd();
-  if (!resolvePath.startsWith(cwd)) {
-    throw new CliError({
-      isKnown: true,
-      message: `Invalid file path: Path outside working directory`,
-      code: "EINVAL",
-      category: "validation",
-      details: { path: filePath, resolved: resolvePath }
-    });
-  }
   
   try{
     const fileData = await fs.readFile(resolvePath, {encoding:"utf-8"});
