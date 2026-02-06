@@ -18,6 +18,9 @@ Stop wrestling with Postman's bloat or forgetting your curl flags. 404ping gives
 - 🔄 **Variable System**: Global and collection-scoped variables with automatic resolution
 - 📁 **Collections**: Organize requests by project or feature
 - 💾 **Smart Saving**: Stores raw requests with variables for automatic updates
+- 🧪 **Assertions & Filters**: jq-like filtering, TAP/JUnit assertions, and variable extraction
+- 🧬 **Chaining & Hooks**: Sequence runner with runtime scopes, pre/post scripts, and benchmarking
+- 🔁 **Postman Friendly**: Import/export Postman v2.1 collections without leaving the terminal
 - 🐛 **Developer-Friendly**: Comprehensive error messages, connection debugging, TLS inspection
 - 🎯 **Production Ready**: Input validation, path traversal protection, secure file operations
 
@@ -73,6 +76,15 @@ Now you can use `404ping` from anywhere in your terminal!
 
 # Quick save to collection (NEW!)
 404ping request {{host}}/api/login -X POST -d '{"email":"{{email}}"}' --save myapp.login
+
+# Chain saved + ad-hoc requests with shared vars
+404ping sequence auth:login users:list --bearer {{runtime.token}} --extract token=json.token
+
+# Run against a different environment profile
+404ping --env staging request {{host}}/users --assert "status=200" --benchmark 5
+
+# Postman interoperability
+404ping postman import my-api.postman.json -c myapp && 404ping postman export myapp
 ```
 
 ---
@@ -321,6 +333,64 @@ Run a saved request from a collection. All output modes from `request` command a
 # Run with connection details
 404ping run myapp:api-call --connection
 ```
+
+### 🔹 Assertions, Filters & Extraction
+
+Validate responses inline with TAP/JUnit output, slice JSON with jq-like filters, and capture values into runtime scopes for chaining.
+
+```bash
+404ping request https://api.example.com/posts/1 \
+  --assert "status=200" --assert "json.userId=42" \
+  --filter "json.comments | {user: json.user.name, ids: json.comments[*].id}" \
+  --extract token=json.auth.token --extract trace=header.X-Trace-Id
+```
+
+### 🔹 Sequences & Chaining
+
+Use `sequence` to mix saved requests and raw URLs while sharing extracted variables, auth headers, and hooks.
+
+```bash
+404ping sequence auth:login https://api.example.com/users \
+  --bearer {{runtime.token}} \
+  --extract session=json.sessionId --assert "status=200"
+```
+
+- `--continue-on-fail` keeps the run going for downstream diagnostics.
+- Each step inherits runtime scopes so `{{runtime.*}}` stays fresh.
+
+### 🔹 Hooks & Benchmarking
+
+- `--pre-script` / `--post-script` accept inline JS or `@file` sources. Use them to mutate requests, stash data, or run custom assertions.
+- `--benchmark [runs]` repeats the request and prints min/p50/p95 timing summaries.
+
+```bash
+404ping request https://api.example.com/invoices \
+  --pre-script @scripts/add-auth.js --post-script "console.log(response.meta.status)" \
+  --benchmark 5
+```
+
+### 🔹 Environment Profiles & Env Files
+
+Global flags make it easy to layer `.env` files per run:
+
+```bash
+404ping --env staging --env-file secrets/.overrides.env run billing:charge
+```
+
+- `--env <profile>` loads `.env.<profile>` or `environments/PROFILE.env`.
+- `--env-file <path>` layers an additional arbitrary dotenv file before profiles.
+
+### 🔹 Postman Import/Export
+
+Bring existing Postman collections into 404ping or share your CLI suites back with teammates.
+
+```bash
+404ping postman import ./collections/payments.postman.json -c payments
+404ping postman export payments -o payments.postman.json
+```
+
+- Nested folders flatten into request names automatically.
+- Requests stay editable as standard 404ping collection entries.
 
 ---
 

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-06
+
+### Added
+- **Commander-based CLI** with shared flag builders, subcommands for request/collection/run/sequence/postman, and global `--env` / `--env-file` options.
+- **Environment loader & runtime scopes** so `.env`, profiles, and extracted variables flow through single requests, sequences, and saved collection runs.
+- **Assertion/Filter/Extraction engines** supporting TAP or JUnit output, jq-inspired filters, and variable harvesting for downstream steps.
+- **Benchmark reporter** (`--benchmark [runs]`) with min/p50/p95 summaries plus auto Content-Type and auth shorthands (`--bearer`, `--basic`).
+- **Sequence runner** that mixes `collection:request` references with ad-hoc URLs, honors shared hooks, and prints per-step summaries.
+- **Script hooks** via `--pre-script` / `--post-script` accepting inline JS or `@file` sources.
+- **Postman import/export commands** (v2.1 schema) with automatic folder flattening and YAML/JSON collection parsing.
+
+### Fixed
+- Sequence command now correctly detects raw URLs instead of treating them as malformed identifiers.
+- Postman import honors the `-c/--collection` target, creates missing collections, and saves requests immediately without cache desyncs.
+- Collection metadata cache refreshes after create/save so subsequent operations always see new entries.
+
 ## [1.1.0] - 2025-11-27
 
 ### 🚀 Major Improvements
