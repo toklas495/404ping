@@ -1,103 +1,110 @@
 import CliError from "../utils/Error.mjs";
-import { createCollection,readCollectionFile,saveRequestInCollection } from "../utils/fileHandle.mjs";
+import { createCollection, readCollectionFile, saveRequestInCollection } from "../utils/fileHandle.mjs";
 import theme from "../utils/theme.mjs";
 import RequestHandler from "./request.handler.mjs";
 
-export default async function collectionHandler(argv){
-    let {action,name,request} = argv;
-    const url = argv._[1];
+function ensureName(value, label) {
+    if (!value || !/^[a-zA-Z0-9_\-]+$/.test(value)) {
+        throw new CliError({
+            isKnown: true,
+            message: `${label} is required and must contain only alphanumeric characters, underscores, and hyphens`,
+            type: "warn",
+            category: "validation"
+        });
+    }
+}
 
+export default async function collectionHandler(argv = {}, runtimeScopes = {}) {
+    const { action, name, request } = argv;
 
-    // create collection
-    // if(action==="create")
-    try{
-        switch(action){
-            case "create":
-                if(!name||!/^[a-zA-Z0-9_\-]+$/.test(name)) {
-                    throw new CliError({
-                        isKnown: true,
-                        message: "Collection name is required and must contain only alphanumeric characters, underscores, and hyphens",
-                        type: "warn",
-                        category: "validation"
-                    });
-                }
-                await createCollection(name);
-                break;
-            case "save":
-                argv["url"] = url||undefined;
-                if(![name,request].every(value=>(value&&/^[a-zA-Z0-9_\-]+$/.test(value)))){
-                    throw new CliError({
-                        isKnown: true,
-                        message: "Collection name and request name are required and must contain only alphanumeric characters, underscores, and hyphens",
-                        type: "warn",
-                        category: "validation"
-                    });
-                }
-                
-                // IMPORTANT: Capture raw values BEFORE calling RequestHandler
-                // This ensures we store the original request with variables like {{host}}
-                const rawRequestForSave = {
-                    url: argv["url"] || url || undefined,
-                    method: argv.method || "GET",
-                    header: Array.isArray(argv.header) ? [...argv.header] : (argv.header ? [argv.header] : []),
-                    data: argv.data
-                };
-                
-                const response = await RequestHandler(argv);
-                
-                // Use raw values (with variables) instead of resolved values
-                const request_body = {
-                    url: rawRequestForSave.url,
-                    method: rawRequestForSave.method,
-                    header: rawRequestForSave.header,
-                    data: rawRequestForSave.data
-                };
-                await saveRequestInCollection(name, request, request_body);
-                break;
-            case "list":
-                const content = await readCollectionFile();
-                console.log(theme.success(content));
-                break;
-            case "show":
-                if(!name||!/^[a-zA-Z0-9_\-]+$/.test(name)) {
-                    throw new CliError({
-                        isKnown: true,
-                        message: "Collection name is required and must contain only alphanumeric characters, underscores, and hyphens",
-                        type: "warn",
-                        category: "validation"
-                    });
-                }
-                const raw_file = await readCollectionFile();
-                let json_file;
-                try {
-                    json_file = JSON.parse(raw_file);
-                } catch (parseError) {
-                    throw new CliError({
-                        isKnown: true,
-                        message: "Invalid JSON in collection file",
-                        category: "file",
-                        originalError: parseError
-                    });
-                }
-                if(!json_file.hasOwnProperty(name)) {
-                    throw new CliError({
-                        isKnown: true,
-                        message: `Collection "${name}" not found`,
-                        category: "file",
-                        type: "error"
-                    });
-                }
-                console.log(theme.success(JSON.stringify(json_file[name], null, 2)));
-                break;
-            default:
+    switch (action) {
+        case "create": {
+            ensureName(name, "Collection name");
+            await createCollection(name);
+            return;
+        }
+        case "list": {
+            const content = await readCollectionFile();
+            console.log(theme.success(content));
+            return;
+        }
+        case "show": {
+            ensureName(name, "Collection name");
+            const raw = await readCollectionFile();
+            let parsed;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (parseError) {
                 throw new CliError({
                     isKnown: true,
-                    message: `Unknown action: "${action}". Valid actions: create, save, list, show`,
-                    type: "warn",
-                    category: "validation"
+                    message: "Invalid JSON in collection file",
+                    category: "file",
+                    originalError: parseError
                 });
+            }
+            if (!parsed.hasOwnProperty(name)) {
+                throw new CliError({
+                    isKnown: true,
+                    message: `Collection "${name}" not found`,
+                    category: "file",
+                    type: "error"
+                });
+            }
+            console.log(theme.success(JSON.stringify(parsed[name], null, 2)));
+            return;
         }
-    }catch(error){
-        throw error;
+        case "save": {
+            ensureName(name, "Collection name");
+            ensureName(request, "Request name");
+            if (!argv.url) {
+                throw new CliError({
+                    isKnown: true,
+                    message: "URL is required when saving a request",
+                    category: "validation",
+                    type: "warn"
+                });
+            }
+
+            const headers = Array.isArray(argv.header) ? argv.header : (argv.header ? [argv.header] : []);
+            const method = argv.method || "GET";
+            const runtimeArgs = {
+                ...argv,
+                method,
+                header: headers,
+                runtimeScopes
+            };
+
+            await RequestHandler(runtimeArgs);
+
+            const requestPayload = {
+                url: argv.url,
+                method,
+                header: headers,
+                data: argv.data,
+                env: argv.env || {},
+                assertions: argv.assert || [],
+                extract: argv.extract || [],
+                filter: argv.filter,
+                bearer: argv.bearer,
+                basic: argv.basic,
+                timeout: argv.timeout,
+                insecure: argv.insecure,
+                redirect: argv.redirect,
+                benchmark: argv.benchmark,
+                preScript: argv.preScript,
+                postScript: argv.postScript
+            };
+
+            await saveRequestInCollection(name, request, requestPayload);
+            console.log(theme.success(`\n✓ Request saved to collection "${name}" as "${request}"`));
+            return;
+        }
+        default:
+            throw new CliError({
+                isKnown: true,
+                message: `Unknown collection action: "${action}"`,
+                type: "warn",
+                category: "validation"
+            });
     }
 }

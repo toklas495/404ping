@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import { join, dirname, resolve,extname } from "path";
+import YAML from "yaml";
 import constant from "../config/constant.mjs"; // adjust according to your structure
 import __dirname from "../../approotdir.mjs";
 import CliError from "./Error.mjs";
@@ -164,7 +165,46 @@ export async function readCollectionFile(path=COLLECTION_JSON_PATH){
  * @param {string} input - String containing {{variables}}
  * @returns {Promise<string>} - String with variables replaced
  */
-export async function variableParser(input) {
+function splitVariablePath(rawKey = "") {
+  return rawKey
+    .replace(/\[(.*?)\]/g, ".$1")
+    .split(".")
+    .map((fragment) => fragment.trim())
+    .filter(Boolean);
+}
+
+function mergeVariableScopes(base = {}, runtimeScopes = {}) {
+  const merged = { ...base };
+  Object.entries(runtimeScopes).forEach(([scope, value]) => {
+    if (value && typeof value === "object") {
+      merged[scope] = value;
+    }
+  });
+  if (!merged.global) merged.global = {};
+  return merged;
+}
+
+function resolveFromScope(scopes = {}, scopeName = "global", tokens = []) {
+  let current = scopes?.[scopeName];
+  if (!tokens.length) return current;
+  for (const token of tokens) {
+    if (current === undefined || current === null) {
+      return undefined;
+    }
+    if (Array.isArray(current)) {
+      const index = Number(token);
+      if (Number.isNaN(index)) {
+        return undefined;
+      }
+      current = current[index];
+    } else {
+      current = current[token];
+    }
+  }
+  return current;
+}
+
+export async function variableParser(input, runtimeScopes = {}) {
   try {
     if (typeof input !== "string") return input;
 
@@ -181,12 +221,22 @@ export async function variableParser(input) {
       });
     }
 
+    const mergedScopes = mergeVariableScopes(cachedVars, runtimeScopes);
+
     return input.replace(/{{(.*?)}}/g, (_, key) => {
-      const [c,k] = key.split(".").map(v=>v.trim());
-      const c_name = k===undefined?"global":c;
-      const k_name = k===undefined?c:k;
-      if (cachedVars?.[c_name]?.[k_name] !== undefined) {
-        return cachedVars[c_name][k_name];
+      const tokens = splitVariablePath(key);
+      if (!tokens.length) return `{{${key}}}`;
+      let scopeName = "global";
+      let pathTokens = tokens;
+
+      if (tokens.length > 1) {
+        scopeName = tokens[0];
+        pathTokens = tokens.slice(1);
+      }
+
+      const value = resolveFromScope(mergedScopes, scopeName, pathTokens);
+      if (value !== undefined && value !== null) {
+        return value;
       }
       console.warn(theme.warning(`Warning: variable "{{${key}}}" not found!`));
       return `{{${key}}}`; // leave placeholder if not found
@@ -265,6 +315,7 @@ export async function createCollection(name){
       requests: {}
     };
     await fs.writeFile(COLLECTION_JSON_PATH, JSON.stringify(existing, null, 2), "utf-8");
+    COLLECTION_JSON = JSON.stringify(existing);
     console.log(theme.success("Collection created successfully"));
   }catch(error){
     if (error instanceof CliError) {
@@ -334,6 +385,7 @@ export async function saveRequestInCollection(collection_name, request_name, req
     await fs.writeFile(collectionFilePath, JSON.stringify(request_body, null, 2), "utf-8");
     existing[collection_name].requests[request_name] = collectionFilePath;
     await fs.writeFile(COLLECTION_JSON_PATH, JSON.stringify(existing, null, 2), "utf-8");
+    COLLECTION_JSON = JSON.stringify(existing);
     console.log(theme.success(`Request "${request_name}" saved successfully in collection "${collection_name}"`));
   }catch(error){
     if (error instanceof CliError) {
@@ -453,7 +505,8 @@ export async function loadFile(input){
   //  if not @file -> return as it 
   const filePath = input.slice(1);
 
-  if(![".json",".http"].includes(extname(input))){
+  const extension = extname(input).toLowerCase();
+  if(![".json",".http",".yaml",".yml"].includes(extension)){
     throw new CliError({
       isKnown:true,
       message:"Invalid file ext",
@@ -469,13 +522,14 @@ export async function loadFile(input){
   
   try{
     const fileData = await fs.readFile(resolvePath, {encoding:"utf-8"});
-    // try json parse
     const text = fileData.toString();
-    try{
+    if(extension === ".json"){
       return JSON.parse(text);
-    }catch{
-      return text;
     }
+    if(extension === ".yaml" || extension === ".yml"){
+      return YAML.parse(text);
+    }
+    return text;
   }catch(error){
     if(error.code==="ENOENT"){
       throw new CliError({

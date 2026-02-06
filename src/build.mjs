@@ -1,55 +1,41 @@
 import RequestHandler from './handler/request.handler.mjs';
 import {listVariableHandler, setVariableHandler,unSetVariableHandler} from './handler/variable.handler.mjs';
 import  CollectionHandler from './handler/collection.handler.mjs';
-import errorHandler from './utils/errorHandler.mjs';
 import { ensureFileExists } from './utils/fileHandle.mjs';
 import runFromCollectionHandler from './handler/runFromCollection.handler.mjs';
+import sequenceHandler from './handler/sequence.handler.mjs';
+import { importPostmanCollection, exportPostmanCollection } from './handler/postman.handler.mjs';
 
 const builder   = {
     async requestHandler(argv){
-        try{
-            await RequestHandler(argv)
-        }catch(error){
-            errorHandler(error);
-        }
+        return RequestHandler(argv);
     },
     async setVariableHandler(argv){
-        try{
-            await setVariableHandler(argv);
-        }catch(error){
-            errorHandler(error);
-        }
+        return setVariableHandler(argv);
     },
     async unSetVariableHandler(argv){
-        try{
-            await unSetVariableHandler(argv);
-        }catch(error){
-            errorHandler(error);
-        }
+        return unSetVariableHandler(argv);
     },
-    async listVariableHandler(argv){try{await listVariableHandler(argv)}catch(error){errorHandler(error)}},
-    async collectionHandler(argv){
-        try{
-            await CollectionHandler(argv);
-        }catch(error){
-            errorHandler(error);
-        }
+    async listVariableHandler(argv){
+        return listVariableHandler(argv);
     },
-    async runRequestFromCollection(argv){
-        try{
-            await runFromCollectionHandler(argv);
-        }catch(error){
-            errorHandler(error);
-        }
+    async collectionHandler(argv, runtimeScopes){
+        return CollectionHandler(argv, runtimeScopes);
+    },
+    async runRequestFromCollection(argv, runtimeScopes){
+        return runFromCollectionHandler(argv, runtimeScopes);
+    },
+    async sequenceHandler(argv, runtimeScopes){
+        return sequenceHandler(argv, runtimeScopes);
+    },
+    async postmanImport(argv){
+        return importPostmanCollection(argv);
+    },
+    async postmanExport(argv){
+        return exportPostmanCollection(argv);
     },
     async init(){
-        try {
-            await ensureFileExists();
-        } catch (error) {
-            // If init fails, we still want to show the error properly
-            errorHandler(error);
-            process.exit(1);
-        }
+        await ensureFileExists();
     }
 }
 

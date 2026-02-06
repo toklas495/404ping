@@ -59,10 +59,30 @@ class Request{
     }
 
     addBody(body={}){
-        this.payload = JSON.stringify(body);
+        if(body===undefined || body===null){
+            this.payload = null;
+            return this;
+        }
 
+        let payloadValue = body;
+        let shouldSetJsonHeader = false;
+
+        if(Buffer.isBuffer(body)){
+            payloadValue = body;
+        }else if(typeof body === "object"){
+            payloadValue = Buffer.from(JSON.stringify(body));
+            shouldSetJsonHeader = true;
+        }else if(typeof body === "string"){
+            payloadValue = Buffer.from(body);
+        }else{
+            payloadValue = Buffer.from(String(body));
+        }
+
+        this.payload = payloadValue;
         this.options.headers = this.options.headers||{};
-        this.options.headers["Content-Type"] = "application/json";
+        if(shouldSetJsonHeader && !("Content-Type" in this.options.headers)){
+            this.options.headers["Content-Type"] = "application/json";
+        }
         this.options.headers["Content-Length"] = Buffer.byteLength(this.payload);
         return this;
     }
@@ -85,7 +105,7 @@ class Request{
                     clearTimeout(timeoutTimer);
                     const end  = performance.now();
                     const ms = end-start;
-                    const duration = ms<1000?`${ms.toFixed(2)}ms`:`${(ms/1000).toFixed(2)}s`
+                    const duration = ms<1000?`${ms.toFixed(2)}ms`:`${(ms/1000).toFixed(2)}s`;
                     const raw = Buffer.concat(data);
                     const body = raw.toString();
                     //try to parse json automatically
