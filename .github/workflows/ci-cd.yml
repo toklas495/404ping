@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   ci:
@@ -21,31 +24,33 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Testing
+      - name: Run tests
         run: npm run test
 
       - name: Build project
         run: npm run build
 
-      - name: Basic sanity check
+      - name: CLI sanity check
         run: |
-          404ping  --help || true
+          node app.mjs --help || true
 
   cd:
     name: Build & Push Docker Image
     needs: ci
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Login to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKER_TOKEN }}" | docker login \
-            -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build Docker image
         run: |
