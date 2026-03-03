@@ -1,24 +1,24 @@
-# Base Image 
-From node:18
+# Lightweight Node runtime
+FROM node:22-alpine
 
-# LABELS
-LABEL maintainer="madara27495@gmail.com"\
-      version="1.2.0"\
-      description="Lightweight API testing CLI — curl with a brain"\
-      org.opencontainers.image.source="https://github.com/toklas495/404ping"
+LABEL maintainer="madara27495@gmail.com" \
+      version="1.2.0" \
+      description="Lightweight API testing CLI — curl with a brain"
 
-# WORKING DIRECTORY -> /app
 WORKDIR /app
 
-# COPY package.json and package-lock.json to working dir
+# Install dependencies (cached layer)
 COPY package*.json ./
+RUN npm ci --only=production
 
-# INSTALL ALL DEPENDENCIES
-RUN npm ci --ignore-scripts
-
-# COPY EVERYTHING
+# Copy source code
 COPY . .
 
-# ENTRYPOINT SET DEFAULT COMMAND
-ENTRYPOINT ["node","app.mjs"]
+# Optional: tests are NOT copied
+# test/ is intentionally excluded
 
+# Make CLI executable
+RUN chmod +x app.mjs
+
+# CLI entry
+ENTRYPOINT ["node", "/app/app.mjs"]

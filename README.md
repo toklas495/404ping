@@ -60,6 +60,39 @@ npm run build
 
 Now you can use `404ping` from anywhere in your terminal!
 
+### 🐳 Run with Docker (no local Node setup)
+
+You can run 404ping directly from the published image:
+
+```bash
+# Pull latest image
+docker pull toklas2004/404ping:latest
+
+# Show help
+docker run --rm toklas2004/404ping:latest --help
+
+# Example request
+docker run --rm toklas2004/404ping:latest request https://httpbin.org/get --info
+```
+
+If you want to use local files (collections, env files, request files), mount your current directory:
+
+```bash
+docker run --rm \
+  -v "$PWD:/work" \
+  -w /work \
+  toklas2004/404ping:latest request @request.http --info
+```
+
+With env profile/env file:
+
+```bash
+docker run --rm \
+  -v "$PWD:/work" \
+  -w /work \
+  toklas2004/404ping:latest --env staging --env-file .env.local request {{host}}/health
+```
+
 ---
 
 ## 🎯 Quick Start

@@ -2,4 +2,8 @@ node_modules
 .git
 .gitignore
 README.md
+CHANGELOG.md 
+CONTRIBUTING.md  
+LICENSE
+test
 
