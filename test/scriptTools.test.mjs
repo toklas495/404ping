@@ -22,7 +22,7 @@ test("runHook executes code and mutates context", async () => {
 });
 
 test("loadScriptSource reads @file script content", async () => {
-  const scriptPath = path.resolve(process.cwd(), "test/fixtures/scripts/hook.js");
+  const scriptPath = path.resolve(process.cwd(), "fixtures/scripts/hook.js");
   const source = await loadScriptSource(`@${scriptPath}`);
   assert.match(source, /setVar/);
 });

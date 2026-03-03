@@ -8,7 +8,7 @@
   "scripts": {
     "build": "chmod +x app.mjs && npm link",
     "dev":"node app.mjs",
-    "test": "node --test test/**/*.test.mjs"
+    "test": "node --test"
   },
   "bin": {
     "404ping": "./app.mjs"

@@ -31,7 +31,7 @@ test("loadEnvironment merges .env, profile, and env-file", async () => {
 
 test("buildExecutionContext returns expected structure", async () => {
   const fixturesDir = await makeTempEnvDir();
-  const ctx = await buildExecutionContext({ envProfile: "staging", envFile: "test/fixtures/custom.env" });
+  const ctx = await buildExecutionContext({ envProfile: "staging", envFile: "fixtures/custom.env" });
   assert.ok(ctx.env);
   assert.ok(ctx.vars);
   assert.ok(ctx.runtime);
